@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Serverless AI Chatbot</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;700&display=swap" rel="stylesheet">
+
+    <style>
+        /* --- Base & Variables --- */
+        :root {
+            --bg-primary: #1a1a2e;
+            --bg-secondary: #16213e;
+            --bg-tertiary: #0f3460;
+            --text-primary: #e9ecef;
+            --text-secondary: #adb5bd;
+            --accent-primary: #e94560;
+            --accent-secondary: #5372f0;
+            --user-msg-bg: #2a2a4a;
+            --ai-msg-bg: #1f4068;
+            --system-msg-bg: #3a3a5a;
+            --border-color: #495057;
+            --success-color: #28a745;
+            --error-color: #dc3545;
+            --warning-color: #ffc107;
+            --font-main: 'Inter', sans-serif;
+            --shadow-light: 0 2px 5px rgba(0, 0, 0, 0.2);
+            --shadow-medium: 0 4px 10px rgba(0, 0, 0, 0.3);
+            --border-radius: 12px;
+            --accent-secondary-rgb: 83, 114, 240;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html {
+            font-size: 16px;
+        }
+
+        body {
+            font-family: var(--font-main);
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 1rem;
+            line-height: 1.6;
+        }
+
+        /* --- API Key Input Area --- */
+        .api-key-area {
+            background-color: var(--bg-tertiary);
+            padding: 1rem 1.5rem;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            flex-wrap: wrap; /* Allow wrapping on smaller screens */
+            align-items: center;
+            gap: 0.75rem;
+            box-shadow: var(--shadow-light);
+            z-index: 20; /* Ensure it's above messages */
+        }
+
+        .api-key-area label {
+            font-weight: 500;
+            margin-right: 0.5rem;
+            flex-shrink: 0; /* Prevent label from shrinking */
+        }
+
+        .api-key-area input[type="password"] { /* Use password type to obscure key */
+            flex-grow: 1;
+            min-width: 200px; /* Minimum width before wrapping */
+            padding: 0.5rem 0.8rem;
+            border: 1px solid var(--border-color);
+            background-color: var(--bg-secondary);
+            color: var(--text-primary);
+            border-radius: 6px;
+            font-family: inherit;
+            outline: none;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+
+         .api-key-area input[type="password"]:focus {
+            border-color: var(--accent-secondary);
+            box-shadow: 0 0 0 3px rgba(var(--accent-secondary-rgb), 0.3);
+        }
+
+        .api-key-area button {
+             padding: 0.5rem 1rem;
+             background-color: var(--accent-primary);
+             color: white;
+             border: none;
+             border-radius: 6px;
+             cursor: pointer;
+             transition: background-color 0.2s ease;
+             font-weight: 500;
+             flex-shrink: 0;
+         }
+
+        .api-key-area button:hover {
+            background-color: #d6304a;
+        }
+
+        .api-key-status {
+             font-size: 0.85rem;
+             width: 100%; /* Take full width on next line if wrapped */
+             margin-top: 0.5rem;
+             color: var(--text-secondary);
+             text-align: center;
+        }
+        .api-key-status.error { color: var(--error-color); }
+        .api-key-status.success { color: var(--success-color); }
+        .api-key-warning {
+            font-size: 0.8rem;
+            color: var(--warning-color);
+            text-align: center;
+            width: 100%;
+            margin-top: 0.3rem;
+            font-style: italic;
+        }
+
+        /* --- Chat Container --- */
+        .chat-container {
+            width: 100%;
+            max-width: 800px;
+            height: 85vh;
+            max-height: 900px;
+            background-color: var(--bg-secondary);
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow-medium);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            border: 1px solid var(--border-color);
+        }
+
+        /* --- Header --- */
+        .chat-header {
+            background-color: var(--bg-tertiary);
+            color: var(--text-primary);
+            padding: 0.8rem 1.5rem; /* Reduced padding slightly */
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border-color);
+             z-index: 10;
+        }
+
+        .chat-header h1 {
+            font-size: 1.1rem; /* Reduced size slightly */
+            font-weight: 500;
+        }
+
+         /* Status indicator not used here, API status shown separately */
+
+        /* --- Message Area --- */
+        .message-area {
+            flex-grow: 1;
+            overflow-y: auto;
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            scroll-behavior: smooth;
+        }
+
+        /* Custom Scrollbar */
+        .message-area::-webkit-scrollbar { width: 8px; }
+        .message-area::-webkit-scrollbar-track { background: var(--bg-secondary); border-radius: 4px; }
+        .message-area::-webkit-scrollbar-thumb { background-color: var(--accent-secondary); border-radius: 4px; border: 2px solid var(--bg-secondary); }
+        .message-area::-webkit-scrollbar-thumb:hover { background-color: var(--accent-primary); }
+
+        /* --- Messages --- */
+        .message {
+            padding: 0.8rem 1.2rem;
+            border-radius: var(--border-radius);
+            max-width: 80%;
+            word-wrap: break-word;
+            opacity: 0;
+            transform: translateY(10px);
+            animation: fadeIn 0.4s ease forwards;
+            position: relative;
+        }
+
+        @keyframes fadeIn {
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .message.user { background-color: var(--user-msg-bg); color: var(--text-primary); align-self: flex-end; border-bottom-right-radius: 4px; }
+        .message.ai { background-color: var(--ai-msg-bg); color: var(--text-primary); align-self: flex-start; border-bottom-left-radius: 4px; }
+        .message.system { background-color: var(--system-msg-bg); color: var(--text-secondary); align-self: center; font-style: italic; font-size: 0.9rem; text-align: center; max-width: 90%; border-radius: 6px; opacity: 0.8; animation: none; opacity: 1; transform: translateY(0); }
+        .message-area > .message.system:first-child { animation: fadeIn 0.4s ease forwards; opacity: 0; transform: translateY(10px); }
+        .message.error { background-color: hsla(0, 70%, 50%, 0.7); backdrop-filter: blur(2px); color: white; align-self: center; text-align: center; font-weight: 500; max-width: 90%; border: 1px solid hsla(0, 70%, 60%, 0.8); }
+        .message p:not(:last-child) { margin-bottom: 0.5em; }
+
+        /* --- Typing Indicator --- */
+        .typing-indicator { display: none; padding: 0.5rem 1.5rem; margin-left: -5px; align-self: flex-start; }
+        .typing-indicator.visible { display: flex; align-items: center; gap: 5px; }
+        .typing-indicator span { width: 8px; height: 8px; background-color: var(--accent-secondary); border-radius: 50%; opacity: 0; animation: typing 1.2s infinite ease-in-out; }
+        .typing-indicator span:nth-child(1) { animation-delay: 0s; }
+        .typing-indicator span:nth-child(2) { animation-delay: 0.2s; }
+        .typing-indicator span:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes typing { 0%, 60%, 100% { transform: translateY(0); opacity: 0.3; } 30% { transform: translateY(-4px); opacity: 1; } }
+
+        /* --- Input Area --- */
+        .input-area { display: flex; align-items: flex-end; padding: 1rem 1.5rem; background-color: var(--bg-tertiary); border-top: 1px solid var(--border-color); gap: 0.75rem; }
+        #user-input { flex-grow: 1; border: 1px solid var(--border-color); background-color: var(--bg-secondary); color: var(--text-primary); border-radius: calc(var(--border-radius) / 1.5); padding: 0.75rem 1rem; font-family: inherit; font-size: 1rem; resize: none; overflow-y: auto; min-height: 48px; max-height: 150px; transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease; outline: none; line-height: 1.4; }
+        #user-input:focus { border-color: var(--accent-secondary); box-shadow: 0 0 0 3px rgba(var(--accent-secondary-rgb), 0.3); }
+        #user-input:disabled { background-color: #2c2c44; cursor: not-allowed; opacity: 0.7; }
+        #user-input::placeholder { color: var(--text-secondary); opacity: 0.8; }
+        #send-button { flex-shrink: 0; background-color: var(--accent-primary); color: white; border: none; border-radius: 50%; width: 48px; height: 48px; display: flex; justify-content: center; align-items: center; cursor: pointer; transition: background-color 0.2s ease, transform 0.1s ease, opacity 0.2s ease; outline: none; }
+        #send-button:hover:not(:disabled) { background-color: #d6304a; }
+        #send-button:active:not(:disabled) { transform: scale(0.95); }
+        #send-button:disabled { background-color: var(--text-secondary); cursor: not-allowed; opacity: 0.6; }
+        #send-button svg { /* No changes needed */ }
+
+        /* --- Responsive Design --- */
+        @media (max-width: 600px) {
+            body { padding: 0; height: 100vh; max-height: none; }
+            .chat-container { height: 100%; max-height: none; border-radius: 0; border: none; }
+            .chat-header { padding: 0.8rem 1rem; }
+            .chat-header h1 { font-size: 1.1rem; }
+            .message-area { padding: 1rem; }
+            .message { max-width: 90%; padding: 0.7rem 1rem; }
+            .api-key-area { padding: 0.8rem 1rem; flex-direction: column; align-items: stretch; }
+             .api-key-area label { margin-right: 0; margin-bottom: 0.25rem; text-align: center; }
+             .api-key-area input[type="password"] { min-width: unset; width: 100%; }
+             .api-key-area button { width: 100%; }
+
+            .input-area { padding: 0.75rem 1rem; }
+            #user-input { padding: 0.6rem 0.8rem; min-height: 44px; }
+            #send-button { width: 44px; height: 44px; }
+        }
+
+        /* Utility class for screen readers only */
+        .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+    </style>
+</head>
+<body>
+    <main class="chat-container">
+        <div class="api-key-area">
+            <label for="api-key-input">Your Google AI API Key:</label>
+            <input type="password" id="api-key-input" placeholder="Enter your key here">
+            <button id="set-api-key-button">Set Key & Init AI</button>
+             <p class="api-key-warning">⚠️ Never share your API key. It will only be used in this browser session.</p>
+             <p class="api-key-status" id="api-key-status">API Key not set. AI is disabled.</p>
+        </div>
+
+        <header class="chat-header">
+            <h1>AI Chat (Client-Side)</h1>
+            <!-- Status indicator removed, using API key status text -->
+        </header>
+
+        <section class="message-area" id="message-area" aria-live="polite" role="log">
+            <div class="message system">
+                <p>Welcome! Please enter your Google Generative AI API Key above to enable the chat.</p>
+            </div>
+        </section>
+
+        <div class="typing-indicator" id="typing-indicator" aria-hidden="true">
+            <span></span><span></span><span></span>
+        </div>
+
+        <footer class="input-area">
+            <textarea
+                id="user-input"
+                placeholder="Please set API Key above..."
+                rows="1"
+                aria-label="Chat message input"
+                disabled  /* Start disabled until API key is set */
+            ></textarea>
+            <button id="send-button" aria-label="Send Message" disabled>
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="24" height="24">
+                    <path d="M3.478 2.405a.75.75 0 00-.926.94l2.432 7.905H13.5a.75.75 0 010 1.5H4.984l-2.432 7.905a.75.75 0 00.926.94 60.519 60.519 0 0018.445-8.986.75.75 0 000-1.218A60.517 60.517 0 003.478 2.405z" />
+                </svg>
+            </button>
+        </footer>
+    </main>
+
+    <!-- Load Google Generative AI SDK -->
+    <script type="module">
+        import {
+            GoogleGenerativeAI,
+            HarmCategory,
+            HarmBlockThreshold,
+        } from "https://esm.run/@google/generative-ai";
+
+        // --- DOM Elements ---
+        const messageArea = document.getElementById('message-area');
+        const userInput = document.getElementById('user-input');
+        const sendButton = document.getElementById('send-button');
+        const typingIndicator = document.getElementById('typing-indicator');
+        const apiKeyInput = document.getElementById('api-key-input');
+        const setApiKeyButton = document.getElementById('set-api-key-button');
+        const apiKeyStatus = document.getElementById('api-key-status');
+        const initialSystemMessage = document.querySelector('.message.system');
+
+        // --- Configuration & State ---
+        const MODEL_NAME = "gemini-1.5-pro-latest"; // Or flash
+        const MAX_INPUT_HEIGHT_PX = 150;
+        let isSending = false;
+        let genAI; // Will be initialized after API key is set
+        let chat; // Chat session object
+        let history = []; // In-browser chat history
+
+        // --- Helper Functions --- (Mostly same as before)
+
+        const scrollToBottom = (force = false) => {
+            const isScrolledToBottom = messageArea.scrollHeight - messageArea.clientHeight <= messageArea.scrollTop + 100;
+            if (force || isScrolledToBottom) {
+                setTimeout(() => { messageArea.scrollTop = messageArea.scrollHeight; }, 0);
+            }
+        };
+
+        const addMessage = (text, sender, type = '') => {
+            const messageElement = document.createElement('div');
+            messageElement.classList.add('message', sender);
+            if (type) messageElement.classList.add(type);
+
+            const paragraph = document.createElement('p');
+            paragraph.textContent = text; // Safely set text content
+            messageElement.appendChild(paragraph);
+
+            setTimeout(() => {
+                messageArea.appendChild(messageElement);
+                scrollToBottom(true);
+            }, 50);
+            return messageElement;
+        };
+
+        const adjustTextareaHeight = () => {
+            userInput.style.height = 'auto';
+            const scrollHeight = userInput.scrollHeight;
+            userInput.style.height = `${Math.min(scrollHeight, MAX_INPUT_HEIGHT_PX)}px`;
+        };
+
+        const showTypingIndicator = (show) => {
+            typingIndicator.classList.toggle('visible', show);
+            if (show) scrollToBottom(true);
+        };
+
+        // --- Core AI Interaction Logic ---
+
+        const initializeAI = () => {
+            const apiKey = apiKeyInput.value.trim();
+            if (!apiKey) {
+                apiKeyStatus.textContent = "API Key cannot be empty.";
+                apiKeyStatus.className = 'api-key-status error';
+                return;
+            }
+
+            try {
+                genAI = new GoogleGenerativeAI(apiKey);
+                // Basic test: Try listing models (less resource intensive than starting chat)
+                 genAI.getGenerativeModel({ model: MODEL_NAME }).generateContent("test")
+                   .then(() => {
+                        apiKeyStatus.textContent = "API Key Validated. AI Initialized!";
+                        apiKeyStatus.className = 'api-key-status success';
+                        userInput.disabled = false;
+                        sendButton.disabled = false;
+                        userInput.placeholder = "Type your message...";
+                        setApiKeyButton.disabled = true; // Optional: disable button after success
+                        apiKeyInput.disabled = true; // Optional: disable input after success
+                        if (initialSystemMessage) initialSystemMessage.remove(); // Remove initial prompt
+                        addMessage("AI Initialized. Ready to chat!", "system");
+                        // Start the chat session immediately
+                        startChatSession();
+                   })
+                   .catch(err => {
+                        console.error("API Key Validation/Initialization Error:", err);
+                        apiKeyStatus.textContent = `Error initializing AI: ${err.message}. Check key and permissions.`;
+                        apiKeyStatus.className = 'api-key-status error';
+                        genAI = null; // Reset genAI if init failed
+                   });
+
+            } catch (error) {
+                console.error("Error creating GoogleGenerativeAI instance:", error);
+                apiKeyStatus.textContent = "Failed to create AI instance. Check console.";
+                apiKeyStatus.className = 'api-key-status error';
+                genAI = null;
+            }
+        };
+
+        const startChatSession = () => {
+             if (!genAI) {
+                 console.error("AI not initialized. Cannot start chat.");
+                 addMessage("Error: AI is not ready. Please set a valid API key.", "system", "error");
+                 return;
+             }
+             const generationConfig = {
+                 temperature: 0.9,
+                 topK: 1,
+                 topP: 1,
+                 maxOutputTokens: 2048,
+             };
+             const safetySettings = [
+                 { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
+                 { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
+                 { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
+                 { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
+             ];
+
+              history = []; // Reset history when initializing a new chat
+              chat = genAI.getGenerativeModel({ model: MODEL_NAME, generationConfig, safetySettings})
+                         .startChat({ history: history }); // Start with empty history
+              console.log("Chat session started.");
+        };
+
+
+        const sendMessageToAI = async () => {
+            const messageText = userInput.value.trim();
+            if (!messageText || isSending || !genAI || !chat) {
+                if (!genAI || !chat) addMessage("Error: AI not initialized or chat session not started.", "system", "error");
+                return;
+            }
+
+            isSending = true;
+            sendButton.disabled = true;
+            userInput.disabled = true;
+            addMessage(messageText, 'user');
+            userInput.value = '';
+            adjustTextareaHeight();
+            showTypingIndicator(true);
+
+            try {
+                console.log("Sending to AI:", messageText);
+                const result = await chat.sendMessage(messageText);
+                const response = result.response;
+
+                showTypingIndicator(false);
+
+                if (response.promptFeedback?.blockReason) {
+                     console.warn(`AI response blocked. Reason: ${response.promptFeedback.blockReason}`);
+                     addMessage(`Response blocked due to: ${response.promptFeedback.blockReason}. Please rephrase.`, 'system', 'error');
+                 } else {
+                    const aiReply = response.text();
+                    addMessage(aiReply, 'ai');
+                     // Manually update history (SDK's startChat history isn't automatically stateful here)
+                    history.push({ role: "user", parts: [{ text: messageText }] });
+                    history.push({ role: "model", parts: [{ text: aiReply }] });
+                    chat = genAI.getGenerativeModel({ model: MODEL_NAME /* configs */}).startChat({ history }); // Re-init with updated history
+                    console.log("History updated, length:", history.length);
+                 }
+
+            } catch (error) {
+                showTypingIndicator(false);
+                console.error('Send Message Error:', error);
+                addMessage(`Error interacting with AI: ${error.message || 'Unknown error'}`, 'system', 'error');
+                // Attempt to restart chat session on error? Maybe too aggressive.
+                // startChatSession();
+            } finally {
+                isSending = false;
+                // Re-enable only if AI is still initialized
+                if (genAI && chat) {
+                    userInput.disabled = false;
+                    sendButton.disabled = false;
+                    userInput.focus();
+                }
+               adjustTextareaHeight();
+            }
+        };
+
+        // --- Paste Anti-Freeze Logic --- (Same as before)
+        const handlePaste = (event) => {
+            if (userInput.disabled) return;
+            event.preventDefault();
+            const pastedText = event.clipboardData?.getData('text/plain');
+            if (!pastedText) return;
+            requestAnimationFrame(() => {
+                const start = userInput.selectionStart, end = userInput.selectionEnd;
+                userInput.value = userInput.value.slice(0, start) + pastedText + userInput.value.slice(end);
+                userInput.selectionStart = userInput.selectionEnd = start + pastedText.length;
+                userInput.dispatchEvent(new Event('input', { bubbles: true }));
+                userInput.scrollTop = userInput.scrollHeight;
+                console.log(`Pasted ${pastedText.length} characters.`);
+            });
+        };
+
+        // --- Event Listeners ---
+        setApiKeyButton.addEventListener('click', initializeAI);
+        apiKeyInput.addEventListener('keypress', (event) => { // Allow Enter to set key
+            if (event.key === 'Enter') {
+                 initializeAI();
+            }
+        });
+
+        sendButton.addEventListener('click', sendMessageToAI);
+        userInput.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault();
+                sendMessageToAI();
+            }
+        });
+        userInput.addEventListener('input', adjustTextareaHeight);
+        userInput.addEventListener('paste', handlePaste);
+
+        // --- Initial Setup ---
+        console.log("Client-side Chatbot UI Initialized.");
+        adjustTextareaHeight(); // Initial height adjustment
+        // Initial focus on API key input
+        apiKeyInput.focus();
+
+    </script>
+</body>
+</html>
